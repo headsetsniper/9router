@@ -153,6 +153,38 @@ export function fixMissingToolResponses(body) {
   return body;
 }
 
+// OpenAI-compatible APIs reject tool messages unless they immediately follow
+// an assistant message that requested the matching tool call. Translation can
+// leave an orphan behind when the corresponding assistant turn is absent.
+export function removeOrphanToolMessages(body) {
+  if (!body.messages || !Array.isArray(body.messages)) return body;
+
+  const messages = [];
+  let pendingToolCallIds = new Set();
+
+  for (const message of body.messages) {
+    if (message.role === "assistant") {
+      pendingToolCallIds = new Set(getToolCallIds(message));
+      messages.push(message);
+      continue;
+    }
+
+    if (message.role === "tool") {
+      if (message.tool_call_id && pendingToolCallIds.has(message.tool_call_id)) {
+        pendingToolCallIds.delete(message.tool_call_id);
+        messages.push(message);
+      }
+      continue;
+    }
+
+    pendingToolCallIds.clear();
+    messages.push(message);
+  }
+
+  body.messages = messages;
+  return body;
+}
+
 // Default `type: "custom"` on Claude-format tools that arrive without one.
 // Anthropic's Claude tool schema requires `type` to be explicitly set; strict gateways
 // (e.g., MiniMax Anthropic-compatible endpoint, error 2013) reject legacy payloads that

@@ -119,3 +119,35 @@ describe("bug: empty content message handling", () => {
     expect(asst, "assistant tool_calls message dropped").toBeTruthy();
   });
 });
+
+describe("OpenAI tool message reconciliation", () => {
+  it("drops tool results that have no preceding matching tool call", () => {
+    const out = T(FORMATS.OPENAI, FORMATS.OPENAI, {
+      messages: [
+        { role: "user", content: "continue" },
+        { role: "tool", tool_call_id: "call_stale", content: "stale result" },
+        { role: "user", content: "answer now" },
+      ],
+    });
+
+    expect(out.messages).toEqual([
+      { role: "user", content: "continue" },
+      { role: "user", content: "answer now" },
+    ]);
+  });
+
+  it("keeps consecutive parallel tool results for their assistant call", () => {
+    const out = T(FORMATS.OPENAI, FORMATS.OPENAI, {
+      messages: [
+        { role: "assistant", content: null, tool_calls: [
+          { id: "call_one", type: "function", function: { name: "one", arguments: "{}" } },
+          { id: "call_two", type: "function", function: { name: "two", arguments: "{}" } },
+        ] },
+        { role: "tool", tool_call_id: "call_one", content: "one result" },
+        { role: "tool", tool_call_id: "call_two", content: "two result" },
+      ],
+    });
+
+    expect(out.messages.filter((message) => message.role === "tool")).toHaveLength(2);
+  });
+});

@@ -7,6 +7,11 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { GithubExecutor } from "../../open-sse/executors/github.js";
+import { proxyAwareFetch } from "../../open-sse/utils/proxyFetch.js";
+
+vi.mock("../../open-sse/utils/proxyFetch.js", () => ({
+  proxyAwareFetch: vi.fn(),
+}));
 
 describe("GithubExecutor.supportsResponsesEndpoint", () => {
   const exec = new GithubExecutor();
@@ -30,6 +35,39 @@ describe("GithubExecutor.supportsResponsesEndpoint", () => {
   it("is null-safe", () => {
     expect(exec.supportsResponsesEndpoint(undefined)).toBe(true);
     expect(exec.supportsResponsesEndpoint("")).toBe(true);
+  });
+});
+
+describe("GithubExecutor.transformRequest", () => {
+  it("removes temperature for GPT-5.6 models", () => {
+    const exec = new GithubExecutor();
+    const result = exec.transformRequest("gpt-5.6-terra", {
+      temperature: 0.7,
+      max_tokens: 512,
+      messages: [{ role: "user", content: "hi" }],
+    });
+
+    expect(result.temperature).toBeUndefined();
+    expect(result.max_tokens).toBeUndefined();
+    expect(result.max_completion_tokens).toBe(512);
+  });
+
+  it("removes temperature from translated GPT-5.6 /responses requests", async () => {
+    vi.mocked(proxyAwareFetch).mockResolvedValueOnce(new Response("{}", { status: 400 }));
+    const exec = new GithubExecutor();
+
+    await exec.executeWithResponsesEndpoint({
+      model: "gpt-5.6-terra",
+      body: {
+        temperature: 0.7,
+        messages: [{ role: "user", content: "hi" }],
+      },
+      stream: true,
+      credentials: { accessToken: "test-token" },
+    });
+
+    const request = JSON.parse(vi.mocked(proxyAwareFetch).mock.calls[0][1].body);
+    expect(request.temperature).toBeUndefined();
   });
 });
 

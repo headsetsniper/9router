@@ -30,6 +30,9 @@ const STRIP_RULES = [
   { provider: "groq", dropMessageFields: ["reasoning_content", "reasoning", "reasoning_details"] },
   { provider: "mistral", dropMessageFields: ["reasoning_content", "reasoning", "reasoning_details"] },
   { provider: "cerebras", dropMessageFields: ["reasoning_content", "reasoning", "reasoning_details"] },
+  // GPT-5.6's Chat Completions endpoint uses max_completion_tokens and accepts
+  // no more than 128 tools. When tools are supplied it requires reasoning off.
+  { provider: "openai", match: /gpt-5\.6-(terra|sol|luna)/i, maxTools: 128, reasoningEffortWithTools: "none" },
   // NVIDIA NIM treats `reasoning` and `reasoning_content` as aliases for one
   // field; sending both makes its deserializer report a duplicate field. Keep
   // the OpenAI canonical spelling on assistant history.
@@ -101,6 +104,12 @@ export function stripUnsupportedParams(provider, model, body) {
             .join("");
         }
       }
+    }
+    if (rule.reasoningEffortWithTools && Array.isArray(body.tools) && body.tools.length > 0) {
+      body.reasoning_effort = rule.reasoningEffortWithTools;
+    }
+    if (Number.isFinite(rule.maxTools) && rule.maxTools >= 0 && Array.isArray(body.tools) && body.tools.length > rule.maxTools) {
+      body.tools = body.tools.slice(0, rule.maxTools);
     }
     if (rule.clampToModelMaxOutput || Number.isFinite(rule.maxOutputCap)) {
       const modelCeiling = getCapabilitiesForModel(provider, model).maxOutput;

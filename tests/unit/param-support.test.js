@@ -30,6 +30,29 @@ describe("stripUnsupportedParams", () => {
     expect(body).toEqual({ top_p: 1 });
   });
 
+  it("normalizes GPT-5.6 direct OpenAI tool requests", () => {
+    const body = {
+      max_tokens: 4096,
+      reasoning_effort: "high",
+      tools: Array.from({ length: 129 }, (_, index) => ({ type: "function", function: { name: `tool_${index}` } })),
+    };
+
+    stripUnsupportedParams("openai", "gpt-5.6-terra", body);
+
+    expect(body.max_tokens).toBeUndefined();
+    expect(body.max_completion_tokens).toBe(4096);
+    expect(body.reasoning_effort).toBe("none");
+    expect(body.tools).toHaveLength(128);
+  });
+
+  it("leaves GPT-5.6 reasoning effort alone when no tools are sent", () => {
+    const body = { reasoning_effort: "high" };
+
+    stripUnsupportedParams("openai", "openai/gpt-5.6-luna", body);
+
+    expect(body.reasoning_effort).toBe("high");
+  });
+
   it("clamps VolcEngine Ark GLM max token fields to the model output ceiling", () => {
     const body = {
       max_tokens: 131072,

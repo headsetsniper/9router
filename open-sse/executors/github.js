@@ -105,6 +105,9 @@ export class GithubExecutor extends BaseExecutor {
     if (transformed.reasoning_effort === "none") {
       delete transformed.reasoning_effort;
     }
+    if (/gpt-5\.6/i.test(model)) {
+      delete transformed.temperature;
+    }
     // Config-driven strip of params unsupported by this provider/model
     stripUnsupportedParams("github", model, transformed);
     return transformed;
@@ -168,7 +171,12 @@ export class GithubExecutor extends BaseExecutor {
     const url = this.config.responsesUrl;
     const headers = this.buildHeaders(credentials, stream);
 
-    const transformedBody = openaiToOpenAIResponsesRequest(model, body, stream, credentials);
+    const transformedBody = this.transformRequest(
+      model,
+      openaiToOpenAIResponsesRequest(model, body, stream, credentials),
+      stream,
+      credentials
+    );
 
     log?.debug("GITHUB", "Sending translated request to /responses");
 

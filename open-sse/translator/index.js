@@ -1,5 +1,5 @@
 import { FORMATS } from "./formats.js";
-import { ensureToolCallIds, fixMissingToolResponses } from "./concerns/toolCall.js";
+import { ensureToolCallIds, fixMissingToolResponses, removeOrphanToolMessages } from "./concerns/toolCall.js";
 import { prepareClaudeRequest, ensureTrailingUserTurn } from "./formats/claude.js";
 import { cloakClaudeTools, decloakStreamChunk } from "../utils/claudeCloaking.js";
 import { restoreToolNames } from "../utils/opencodeFingerprint.js";
@@ -144,6 +144,8 @@ export function translateRequest(sourceFormat, targetFormat, model, body, stream
     result = filterToOpenAIFormat(result, {
       preserveCacheControl: !!PROVIDERS[provider]?.quirks?.preserveCacheControl,
     });
+    ensureToolCallIds(result);
+    removeOrphanToolMessages(result);
   }
 
   // Final step: prepare request for Claude format endpoints

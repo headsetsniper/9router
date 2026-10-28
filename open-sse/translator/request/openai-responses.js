@@ -241,6 +241,7 @@ export function openaiResponsesToOpenAIRequest(model, body, stream, credentials)
   delete result.input;
   delete result.instructions;
   delete result.include;
+  delete result.text;
   delete result.prompt_cache_key;
   delete result.store;
   if (typeof result.reasoning?.effort === "string") {
@@ -341,6 +342,7 @@ export function openaiToOpenAIResponsesRequest(model, body, stream, credentials)
   // Extract system message as instructions
   let hasSystemMessage = false;
   const messages = body.messages || [];
+  const emittedToolCallIds = new Set();
 
   for (const msg of messages) {
     if (msg.role === ROLE.SYSTEM || msg.role === ROLE.DEVELOPER) {
@@ -401,20 +403,24 @@ export function openaiToOpenAIResponsesRequest(model, body, stream, credentials)
         // Skip nameless calls — strict Responses upstreams reject them (#444)
         const name = typeof tc.function?.name === "string" ? tc.function.name.trim() : "";
         if (!name) continue;
+        const callId = clampResponsesCallId(tc.id);
         result.input.push({
           type: RESPONSES_ITEM.FUNCTION_CALL,
-          call_id: clampResponsesCallId(tc.id),
+          call_id: callId,
           name: name.slice(0, MAX_TOOL_NAME_LEN),
           arguments: coerceResponsesArguments(tc.function?.arguments)
         });
+        emittedToolCallIds.add(callId);
       }
     }
 
     // Convert tool results - output must be a string for Responses API
     if (msg.role === ROLE.TOOL) {
+      const callId = clampResponsesCallId(msg.tool_call_id);
+      if (!emittedToolCallIds.has(callId)) continue;
       result.input.push({
         type: RESPONSES_ITEM.FUNCTION_CALL_OUTPUT,
-        call_id: clampResponsesCallId(msg.tool_call_id),
+        call_id: callId,
         output: coerceResponsesOutput(msg.content)
       });
     }

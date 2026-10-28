@@ -28,6 +28,15 @@ describe("Codex CLI Responses → OpenAI", () => {
     expect(typeof asst.tool_calls[0].function.arguments).toBe("string");
   });
 
+  it("strips Responses text options from Chat Completions requests", () => {
+    const out = R2O({
+      input: "Hello",
+      text: { verbosity: "medium" },
+    });
+
+    expect(out.text).toBeUndefined();
+  });
+
   // openai-responses.js:75-77 — input_image uses file_id as raw url
   // KNOWN BUG
   it.fails("input_image with file_id is not used as a raw url", () => {
@@ -71,5 +80,36 @@ describe("OpenAI → Codex Responses (reverse)", () => {
     });
     const fc = out.input.find((i) => i.type === "function_call");
     expect(fc.call_id.length).toBeLessThanOrEqual(64);
+  });
+
+  it("drops tool outputs whose function call was not emitted", () => {
+    const out = O2R({
+      messages: [
+        { role: "user", content: "continue" },
+        { role: "tool", tool_call_id: "call_stale", content: "stale result" },
+        { role: "assistant", content: null, tool_calls: [
+          { id: "call_nameless", type: "function", function: { name: "", arguments: "{}" } },
+        ] },
+        { role: "tool", tool_call_id: "call_nameless", content: "dropped call result" },
+      ],
+    });
+
+    expect(out.input.some((item) => item.type === "function_call_output")).toBe(false);
+  });
+
+  it("keeps outputs for valid parallel function calls", () => {
+    const out = O2R({
+      messages: [
+        { role: "assistant", content: null, tool_calls: [
+          { id: "call_one", type: "function", function: { name: "one", arguments: "{}" } },
+          { id: "call_two", type: "function", function: { name: "two", arguments: "{}" } },
+        ] },
+        { role: "tool", tool_call_id: "call_one", content: "one result" },
+        { role: "tool", tool_call_id: "call_two", content: "two result" },
+      ],
+    });
+
+    expect(out.input.filter((item) => item.type === "function_call_output").map((item) => item.call_id))
+      .toEqual(["call_one", "call_two"]);
   });
 });
