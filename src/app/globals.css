@@ -1,5 +1,6 @@
-/* source() sets scan base to src/ for both webpack + Turbopack; auto-detection still skips binaries + gitignore */
-@import "tailwindcss" source("../../");
+/* source() sets the scan base to src/ (relative to this file). Tailwind registers the base as a
+   webpack directory dependency, so a repo-root base makes webpack snapshot logs/, .next/, etc. */
+@import "tailwindcss" source("../");
 
 @custom-variant dark (&:where(.dark, .dark *));
 

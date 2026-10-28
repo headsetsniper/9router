@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { availableParallelism } from "node:os";
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
 // CLI bundling needs workspace root so tracing includes hoisted node_modules (slim ~50MB).
@@ -8,6 +9,8 @@ const tracingRoot = process.env.NEXT_TRACING_ROOT_MODE === "workspace"
   ? join(projectRoot, "..")
   : projectRoot;
 const proxyClientMaxBodySize = process.env.NINEROUTER_PROXY_CLIENT_MAX_BODY_SIZE || "128mb";
+// Next spawns one ~120 MB static-generation worker per core; the pages are tiny, so cap it.
+const buildWorkers = Math.max(1, Math.min(availableParallelism() - 1, 4));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -38,6 +41,7 @@ const nextConfig = {
   },
   env: {},
   experimental: {
+    cpus: buildWorkers,
     // #1529/#1572: LLM clients can send long context or base64 image payloads through /v1 rewrites.
     proxyClientMaxBodySize,
     // Cache fetch responses across HMR refreshes for faster dev reloads.
