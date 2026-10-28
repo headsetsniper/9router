@@ -46,6 +46,13 @@ const nextConfig = {
     optimizePackageImports: ["@xyflow/react", "@dnd-kit/core", "@dnd-kit/sortable", "material-symbols", "marked"],
   },
   webpack: (config, { isServer }) => {
+    // Standalone tracing (nft) turns runtime paths like path.join(os.homedir(), "AppData", x)
+    // into globs and walks them, which can exhaust the heap on large home directories.
+    // Files outside the tracing root never ship, so skip them before nft globs.
+    const tracePlugin = config.plugins.find((p) => p?.constructor?.name === "TraceEntryPointsPlugin");
+    if (Array.isArray(tracePlugin?.traceIgnores)) {
+      tracePlugin.traceIgnores.push("../**", "[a-zA-Z]:/**");
+    }
     // Ignore fs/path modules in browser bundle
     if (!isServer) {
       config.resolve.fallback = {
