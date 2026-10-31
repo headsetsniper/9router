@@ -22,12 +22,20 @@ describe("stripUnsupportedParams", () => {
     expect(body.messages[0].content).toBe("hello world");
   });
 
-  it("still drops unsupported GitHub model params", () => {
+  it.each(["gpt-5.4", "gpt-5.6-terra", "gpt-6-sol", "gpt-6-luna", "gpt-6-astra", "gpt-6.1-sol"])("drops unsupported GitHub temperature for %s", (model) => {
     const body = { temperature: 0.7, top_p: 1 };
 
-    stripUnsupportedParams("github", "gpt-5.4", body);
+    stripUnsupportedParams("github", model, body);
 
     expect(body).toEqual({ top_p: 1 });
+  });
+
+  it("preserves temperature for other providers and older GitHub models", () => {
+    for (const [provider, model] of [["openai", "gpt-6-sol"], ["github", "gpt-4.1"], ["github", "gpt-5-mini"]]) {
+      const body = { temperature: 0 };
+      stripUnsupportedParams(provider, model, body);
+      expect(body.temperature).toBe(0);
+    }
   });
 
   it("normalizes GPT-5.6 direct OpenAI tool requests", () => {

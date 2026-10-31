@@ -59,6 +59,8 @@ const COOLDOWN = {
 export const ERROR_RULES = [
   // --- Text-based rules (checked first, order = priority) ---
   { provider: "codex", text: "model is not supported when using codex with a chatgpt account", cooldownMs: MAX_RATE_LIMIT_COOLDOWN_MS },
+  // GitHub Copilot plan/policy lacks this model (model_not_supported): lock this account+model so rotation reaches an entitled account.
+  { provider: "github", text: "the requested model is not supported", cooldownMs: MAX_RATE_LIMIT_COOLDOWN_MS },
   // Intl gateway blocks affect the account/IP, so let the connection back off.
   { provider: "codebuddy-intl", text: "request illegal", backoff: true },
   { provider: "codebuddy-intl", text: "conversation id missing", backoff: true },

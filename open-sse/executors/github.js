@@ -90,9 +90,9 @@ export class GithubExecutor extends BaseExecutor {
     return sanitized;
   }
 
-  // Newer OpenAI models (gpt-5+, o1, o3, o4) require max_completion_tokens instead of max_tokens
+  // GPT-5/6 and o1/o3/o4 require max_completion_tokens instead of max_tokens.
   requiresMaxCompletionTokens(model) {
-    return /gpt-5|o[134]-/i.test(model);
+    return /gpt-[56]|o[134]-/i.test(model);
   }
 
   transformRequest(model, body, stream, credentials) {
@@ -104,9 +104,6 @@ export class GithubExecutor extends BaseExecutor {
     // "none" means no thinking — strip it so models that don't support "none" don't 400
     if (transformed.reasoning_effort === "none") {
       delete transformed.reasoning_effort;
-    }
-    if (/gpt-5\.6/i.test(model)) {
-      delete transformed.temperature;
     }
     // Config-driven strip of params unsupported by this provider/model
     stripUnsupportedParams("github", model, transformed);
@@ -158,9 +155,10 @@ export class GithubExecutor extends BaseExecutor {
       const errorBody = await result.response.clone().text();
 
       if (errorBody.includes("not accessible via the /chat/completions endpoint") || errorBody.includes("The requested model is not supported")) {
-        log?.warn("GITHUB", `Model ${model} requires /responses. Switching...`);
-        this.knownCodexModels.add(model);
-        return this.executeWithResponsesEndpoint(options);
+        log?.warn("GITHUB", `Model ${model} rejected /chat/completions. Trying /responses...`);
+        const responsesResult = await this.executeWithResponsesEndpoint(options);
+        if (responsesResult.response.ok) this.knownCodexModels.add(model);
+        return responsesResult;
       }
     }
 
