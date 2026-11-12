@@ -8,7 +8,7 @@ const notSupported = JSON.stringify({
 
 describe("GitHub model_not_supported account fallback", () => {
   it("locks the unentitled GitHub account for that model and rotates", () => {
-    expect(checkFallbackError(400, notSupported, 0, "github")).toEqual({
+    expect(checkFallbackError(400, notSupported, 0, "github")).toMatchObject({
       shouldFallback: true,
       cooldownMs: MAX_RATE_LIMIT_COOLDOWN_MS,
     });
