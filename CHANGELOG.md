@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Fixes
+- **Dashboard**: align the app version with the 0.5.119 release so the update notice reflects the installed version.
 - **GitHub Copilot**: extend unsupported-temperature stripping and Chat Completions token normalization to GPT-6, including GPT-6.1 Sol used by combo fallbacks; cache a `/responses` route only after a successful response.
 - **GitHub Copilot**: a `model_not_supported` 400 (account plan/policy lacks the model) now locks that account+model and rotates to the next connection instead of failing the request.
 
